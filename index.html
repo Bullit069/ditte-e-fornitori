@@ -21,7 +21,8 @@
     .due { background-color: #ffc107; color: black; }
     .pending { background-color: #17a2b8; color: white; }
     .selected { box-shadow: 0 0 0 3px rgba(0,0,0,0.2); }
-  </style>
+  .colonna-societa { flex: 1; }
+</style>
 
   <!-- Firebase App (core SDK) -->
   <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
@@ -79,7 +80,12 @@
       <option value="due">Da pagare</option>
       <option value="pending">In sospeso</option>
     </select><br/>
-    <button onclick="aggiungiFattura()">Aggiungi Fattura</button>
+    
+    <select id="societaFattura">
+      <option value="IMC">IMC</option>
+      <option value="SELLING">SELLING</option>
+    </select><br/>
+<button onclick="aggiungiFattura()">Aggiungi Fattura</button>
   </div>
 
     <button class="back-btn" onclick="goBack()">← Torna all'elenco</button>
@@ -206,7 +212,85 @@
     }
 
     
+    
     async function showDetails(dittaName) {
+      document.getElementById('homePage').style.display = 'none';
+      document.getElementById('dittaDetails').style.display = 'block';
+      document.getElementById('dittaName').textContent = dittaName;
+
+      const container = document.getElementById('dittaDetails');
+      const existingScadenze = container.querySelectorAll('.scadenza, .colonna-societa');
+      existingScadenze.forEach(el => el.remove());
+
+      const imcCol = document.createElement('div');
+      const sellCol = document.createElement('div');
+      imcCol.className = 'colonna-societa';
+      sellCol.className = 'colonna-societa';
+      imcCol.innerHTML = '<h3>IMC</h3>';
+      sellCol.innerHTML = '<h3>SELLING</h3>';
+
+      const snapshot = await db.collection("ditte").doc(dittaName).collection("fatture").get();
+      snapshot.forEach(doc => {
+        const fattura = doc.data();
+        const id = doc.id;
+        const div = document.createElement('div');
+        div.className = 'scadenza';
+        div.innerHTML = `
+          <strong>Fattura N°:</strong> ${fattura.numero}<br/>
+          <strong>Data:</strong> ${fattura.data}<br/>
+          <strong>Dare:</strong> €${fattura.dare}<br/>
+          <strong>Avere:</strong> €${fattura.avere}<br/>
+          <strong>Programmazione:</strong> ${fattura.programmazione}<br/>
+          <strong>Prestazione:</strong> ${fattura.prestazione}<br/>
+          <strong>Cliente:</strong> ${fattura.cliente}<br/>
+          <strong>Note:</strong> ${fattura.note}<br/>
+          <strong>Società:</strong> ${fattura.societa}
+          <div class="status">
+            <strong>Stato:</strong>
+            <button class="paid ${fattura.stato === 'paid' ? 'selected' : ''}" onclick="setStatus(this, 'paid')">Pagata</button>
+            <button class="due ${fattura.stato === 'due' ? 'selected' : ''}" onclick="setStatus(this, 'due')">Da pagare</button>
+            <button class="pending ${fattura.stato === 'pending' ? 'selected' : ''}" onclick="setStatus(this, 'pending')">In sospeso</button>
+          </div>
+          <div class="actions">
+            <button onclick="modificaFattura('${id}', '${dittaName}')">Modifica</button>
+            <button onclick="eliminaFattura('${id}', '${dittaName}')">Elimina</button>
+          </div>
+        `;
+        if (fattura.societa === "SELLING") {
+          sellCol.appendChild(div);
+        } else {
+          imcCol.appendChild(div);
+        }
+      });
+
+      const wrapper = document.createElement('div');
+      wrapper.style.display = 'flex';
+      wrapper.style.gap = '20px';
+      wrapper.appendChild(imcCol);
+      wrapper.appendChild(sellCol);
+      container.appendChild(wrapper);
+    }
+
+    async function aggiungiFattura() {
+      const ditta = document.getElementById("dittaName").textContent;
+      const nuova = {
+        numero: parseInt(document.getElementById("numFattura").value),
+        data: document.getElementById("dataFattura").value.split("-").reverse().join("/"),
+        dare: parseFloat(document.getElementById("dareFattura").value),
+        avere: parseFloat(document.getElementById("avereFattura").value),
+        programmazione: document.getElementById("progFattura").value,
+        prestazione: document.getElementById("prestazioneFattura").value,
+        cliente: document.getElementById("clienteFattura").value,
+        note: document.getElementById("noteFattura").value,
+        stato: document.getElementById("statoFattura").value,
+        societa: document.getElementById("societaFattura").value
+      };
+
+      await db.collection("ditte").doc(ditta).collection("fatture").add(nuova);
+      showDetails(ditta);
+    }
+
+async function showDetails(dittaName) {
       document.getElementById('homePage').style.display = 'none';
       document.getElementById('dittaDetails').style.display = 'block';
       document.getElementById('dittaName').textContent = dittaName;
@@ -260,6 +344,166 @@
 
       await db.collection("ditte").doc(ditta).collection("fatture").add(nuova);
       showDetails(ditta);
+    }
+
+
+    
+    async function showDetails(dittaName) {
+      document.getElementById('homePage').style.display = 'none';
+      document.getElementById('dittaDetails').style.display = 'block';
+      document.getElementById('dittaName').textContent = dittaName;
+
+      const container = document.getElementById('dittaDetails');
+      const existingScadenze = container.querySelectorAll('.scadenza, .colonna-societa');
+      existingScadenze.forEach(el => el.remove());
+
+      const imcCol = document.createElement('div');
+      const sellCol = document.createElement('div');
+      imcCol.className = 'colonna-societa';
+      sellCol.className = 'colonna-societa';
+      imcCol.innerHTML = '<h3>IMC</h3>';
+      sellCol.innerHTML = '<h3>SELLING</h3>';
+
+      const snapshot = await db.collection("ditte").doc(dittaName).collection("fatture").get();
+      snapshot.forEach(doc => {
+        const fattura = doc.data();
+        const id = doc.id;
+        const div = document.createElement('div');
+        div.className = 'scadenza';
+        div.innerHTML = `
+          <strong>Fattura N°:</strong> ${fattura.numero}<br/>
+          <strong>Data:</strong> ${fattura.data}<br/>
+          <strong>Dare:</strong> €${fattura.dare}<br/>
+          <strong>Avere:</strong> €${fattura.avere}<br/>
+          <strong>Programmazione:</strong> ${fattura.programmazione}<br/>
+          <strong>Prestazione:</strong> ${fattura.prestazione}<br/>
+          <strong>Cliente:</strong> ${fattura.cliente}<br/>
+          <strong>Note:</strong> ${fattura.note}<br/>
+          <strong>Società:</strong> ${fattura.societa}
+          <div class="status">
+            <strong>Stato:</strong>
+            <button class="paid ${fattura.stato === 'paid' ? 'selected' : ''}" onclick="setStatus(this, 'paid')">Pagata</button>
+            <button class="due ${fattura.stato === 'due' ? 'selected' : ''}" onclick="setStatus(this, 'due')">Da pagare</button>
+            <button class="pending ${fattura.stato === 'pending' ? 'selected' : ''}" onclick="setStatus(this, 'pending')">In sospeso</button>
+          </div>
+          <div class="actions">
+            <button onclick="modificaFattura('${id}', '${dittaName}')">Modifica</button>
+            <button onclick="eliminaFattura('${id}', '${dittaName}')">Elimina</button>
+          </div>
+        `;
+        if (fattura.societa === "SELLING") {
+          sellCol.appendChild(div);
+        } else {
+          imcCol.appendChild(div);
+        }
+      });
+
+      const wrapper = document.createElement('div');
+      wrapper.style.display = 'flex';
+      wrapper.style.gap = '20px';
+      wrapper.appendChild(imcCol);
+      wrapper.appendChild(sellCol);
+      container.appendChild(wrapper);
+    }
+
+    async function aggiungiFattura() {
+      const ditta = document.getElementById("dittaName").textContent;
+      const nuova = {
+        numero: parseInt(document.getElementById("numFattura").value),
+        data: document.getElementById("dataFattura").value.split("-").reverse().join("/"),
+        dare: parseFloat(document.getElementById("dareFattura").value),
+        avere: parseFloat(document.getElementById("avereFattura").value),
+        programmazione: document.getElementById("progFattura").value,
+        prestazione: document.getElementById("prestazioneFattura").value,
+        cliente: document.getElementById("clienteFattura").value,
+        note: document.getElementById("noteFattura").value,
+        stato: document.getElementById("statoFattura").value,
+        societa: document.getElementById("societaFattura").value
+      };
+
+      await db.collection("ditte").doc(ditta).collection("fatture").add(nuova);
+      showDetails(ditta);
+    }
+
+async function showDetails(dittaName) {
+      document.getElementById('homePage').style.display = 'none';
+      document.getElementById('dittaDetails').style.display = 'block';
+      document.getElementById('dittaName').textContent = dittaName;
+
+      const container = document.getElementById('dittaDetails');
+      const existingScadenze = container.querySelectorAll('.scadenza');
+      existingScadenze.forEach(el => el.remove());
+
+      const snapshot = await db.collection("ditte").doc(dittaName).collection("fatture").get();
+      snapshot.forEach(doc => {
+        const fattura = doc.data();
+        const id = doc.id;
+        const div = document.createElement('div');
+        div.className = 'scadenza';
+        div.innerHTML = `
+          <strong>Fattura N°:</strong> ${fattura.numero}<br/>
+          <strong>Data:</strong> ${fattura.data}<br/>
+          <strong>Dare:</strong> €${fattura.dare}<br/>
+          <strong>Avere:</strong> €${fattura.avere}<br/>
+          <strong>Programmazione:</strong> ${fattura.programmazione}<br/>
+          <strong>Prestazione:</strong> ${fattura.prestazione}<br/>
+          <strong>Cliente:</strong> ${fattura.cliente}<br/>
+          <strong>Note:</strong> ${fattura.note}
+          <div class="status">
+            <strong>Stato:</strong>
+            <button class="paid ${fattura.stato === 'paid' ? 'selected' : ''}" onclick="setStatus(this, 'paid')">Pagata</button>
+            <button class="due ${fattura.stato === 'due' ? 'selected' : ''}" onclick="setStatus(this, 'due')">Da pagare</button>
+            <button class="pending ${fattura.stato === 'pending' ? 'selected' : ''}" onclick="setStatus(this, 'pending')">In sospeso</button>
+          </div>
+          <div class="actions">
+            <button onclick="modificaFattura('${id}', '${dittaName}')">Modifica</button>
+            <button onclick="eliminaFattura('${id}', '${dittaName}')">Elimina</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function eliminaFattura(id, dittaName) {
+      if (confirm("Sei sicuro di voler eliminare questa fattura?")) {
+        await db.collection("ditte").doc(dittaName).collection("fatture").doc(id).delete();
+        showDetails(dittaName);
+      }
+    }
+
+    async function modificaFattura(id, dittaName) {
+      const doc = await db.collection("ditte").doc(dittaName).collection("fatture").doc(id).get();
+      const fattura = doc.data();
+
+      document.getElementById("numFattura").value = fattura.numero;
+      document.getElementById("dataFattura").value = fattura.data.split("/").reverse().join("-");
+      document.getElementById("dareFattura").value = fattura.dare;
+      document.getElementById("avereFattura").value = fattura.avere;
+      document.getElementById("progFattura").value = fattura.programmazione;
+      document.getElementById("prestazioneFattura").value = fattura.prestazione;
+      document.getElementById("clienteFattura").value = fattura.cliente;
+      document.getElementById("noteFattura").value = fattura.note;
+      document.getElementById("statoFattura").value = fattura.stato;
+
+      const btn = document.querySelector("#newFatturaForm button");
+      btn.textContent = "Aggiorna Fattura";
+      btn.onclick = async function () {
+        const nuova = {
+          numero: parseInt(document.getElementById("numFattura").value),
+          data: document.getElementById("dataFattura").value.split("-").reverse().join("/"),
+          dare: parseFloat(document.getElementById("dareFattura").value),
+          avere: parseFloat(document.getElementById("avereFattura").value),
+          programmazione: document.getElementById("progFattura").value,
+          prestazione: document.getElementById("prestazioneFattura").value,
+          cliente: document.getElementById("clienteFattura").value,
+          note: document.getElementById("noteFattura").value,
+          stato: document.getElementById("statoFattura").value
+        };
+        await db.collection("ditte").doc(dittaName).collection("fatture").doc(id).set(nuova);
+        btn.textContent = "Aggiungi Fattura";
+        btn.onclick = aggiungiFattura;
+        showDetails(dittaName);
+      };
     }
 
 function goBack() {
