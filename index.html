@@ -47,6 +47,21 @@
       border-radius: 5px;
     }
   </style>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCZ567XxvheXE9PwRuy3eqBuc6Ey6APz94",
+      authDomain: "ditte-e-fornitori.firebaseapp.com",
+      projectId: "ditte-e-fornitori",
+      storageBucket: "ditte-e-fornitori.firebasestorage.app",
+      messagingSenderId: "180273712086",
+      appId: "1:180273712086:web:e4d108a1a7db6090d4b277"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+  </script>
 </head>
 <body>
   <header>
@@ -61,27 +76,54 @@
 
   <div class="container" id="homePage">
     <h2>📋 Elenco Ditte</h2>
-    <div class="card-grid">
-      <div class="card" onclick="alert('Vai a AC SERVICE')">
-        <h3>AC SERVICE</h3>
-        <p>Totale Dare: €3.200</p>
-        <p>Prossima Scadenza: 30 Aprile 2025</p>
-      </div>
-      <div class="card" onclick="alert('Vai a AP IMPIANTI')">
-        <h3>AP IMPIANTI</h3>
-        <p>Totale Dare: €2.000</p>
-        <p>Prossima Scadenza: 15 Maggio 2025</p>
-      </div>
+    <div class="card-grid" id="dittaCards">
+      <!-- Popolato da JS -->
     </div>
   </div>
 
   <script>
-    const fatture = [
-      { data: "10/04/2025", cliente: "Verdi Impianti", dare: 1500, societa: "IMC" },
-      { data: "15/04/2025", cliente: "Rossi Impianti", dare: 2000, societa: "SELLING" },
-      { data: "15/04/2025", cliente: "Blu Energy", dare: 1000, societa: "IMC" },
-      { data: "23/04/2025", cliente: "Solar Tech", dare: 3000, societa: "SELLING" }
-    ];
+    async function caricaFattureEDitte() {
+      const calendario = [];
+      const dittaMap = {};
+
+      const ditteSnapshot = await db.collection("ditte").get();
+      for (const dittaDoc of ditteSnapshot.docs) {
+        const dittaName = dittaDoc.id;
+        const fattureSnap = await db.collection("ditte").doc(dittaName).collection("fatture").get();
+        let totaleDare = 0;
+        let prossimaScadenza = "";
+
+        fattureSnap.forEach(doc => {
+          const f = doc.data();
+          calendario.push(f);
+          totaleDare += parseFloat(f.dare || 0);
+          if (!prossimaScadenza || f.data < prossimaScadenza) {
+            prossimaScadenza = f.data;
+          }
+        });
+
+        dittaMap[dittaName] = { totaleDare, prossimaScadenza };
+      }
+
+      generaCalendario(calendario);
+      popolaCards(dittaMap);
+    }
+
+    function popolaCards(dittaMap) {
+      const container = document.getElementById("dittaCards");
+      container.innerHTML = "";
+      Object.entries(dittaMap).forEach(([nome, dati]) => {
+        const div = document.createElement("div");
+        div.className = "card";
+        div.onclick = () => alert('Visualizzazione dettagli per ' + nome);
+        div.innerHTML = `
+          <h3>${nome}</h3>
+          <p>Totale Dare: €${dati.totaleDare}</p>
+          <p>Prossima Scadenza: ${dati.prossimaScadenza}</p>
+        `;
+        container.appendChild(div);
+      });
+    }
 
     function generaCalendario(fatture) {
       const calendarGrid = document.getElementById("calendarGrid");
@@ -134,7 +176,7 @@
       ).join("");
     }
 
-    generaCalendario(fatture);
+    caricaFattureEDitte();
   </script>
 </body>
 </html>
