@@ -1,0 +1,161 @@
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fatture - IMC / SELLING</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
+    header { background: #222; color: #fff; padding: 20px; text-align: center; }
+    .container { max-width: 1100px; margin: 20px auto; padding: 20px; background: #fff; }
+    .columns { display: flex; gap: 20px; }
+    .column { flex: 1; background: #f9f9f9; padding: 10px; border-radius: 6px; }
+    .fattura { background: #fff; border: 1px solid #ccc; margin-bottom: 10px; padding: 10px; border-radius: 5px; }
+    .form-field { margin-bottom: 10px; }
+    input, select { padding: 5px; width: 100%; }
+    button { padding: 6px 12px; margin-top: 10px; }
+    .delete { background: red; color: white; border: none; margin-left: 5px; }
+    .edit { background: orange; color: white; border: none; margin-left: 5px; }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCZ567XxvheXE9PwRuy3eqBuc6Ey6APz94",
+      authDomain: "ditte-e-fornitori.firebaseapp.com",
+      projectId: "ditte-e-fornitori",
+      storageBucket: "ditte-e-fornitori.firebasestorage.app",
+      messagingSenderId: "180273712086",
+      appId: "1:180273712086:web:e4d108a1a7db6090d4b277"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+  </script>
+</head>
+<body>
+  <header><h1>Gestione Fatture</h1></header>
+  <div class="container">
+    <h2 id="titoloDitta">Ditta: ...</h2>
+
+    <div class="form-field"><input id="numero" type="text" placeholder="Numero Fattura"></div>
+    <div class="form-field"><input id="data" type="date"></div>
+    <div class="form-field"><input id="dare" type="number" placeholder="Importo Dare (€)"></div>
+    <div class="form-field"><input id="avere" type="number" placeholder="Importo Avere (€)"></div>
+    <div class="form-field"><input id="scadenza" type="text" placeholder="Scadenza (es. 30/04/2025)"></div>
+    <div class="form-field"><input id="prestazione" type="text" placeholder="Tipo di lavoro"></div>
+    <div class="form-field"><input id="cliente" type="text" placeholder="Cliente"></div>
+    <div class="form-field"><input id="note" type="text" placeholder="Note"></div>
+    <div class="form-field">
+      <select id="societa">
+        <option value="IMC">IMC</option>
+        <option value="SELLING">SELLING</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <select id="stato">
+        <option value="Pagata">Pagata</option>
+        <option value="Da pagare">Da pagare</option>
+        <option value="In attesa">In attesa</option>
+      </select>
+    </div>
+    <button onclick="aggiungiFattura()">➕ Aggiungi Fattura</button>
+
+    <div class="columns">
+      <div class="column" id="colIMC"><h3>IMC</h3></div>
+      <div class="column" id="colSELLING"><h3>SELLING</h3></div>
+    </div>
+  </div>
+
+  <script>
+    const ditta = new URLSearchParams(window.location.search).get("ditta");
+    document.getElementById("titoloDitta").textContent = "Ditta: " + ditta;
+
+    function creaFatturaHTML(f, id) {
+      return `
+        <div class="fattura">
+          <strong>N°:</strong> ${f.numero}<br/>
+          <strong>Data:</strong> ${f.data}<br/>
+          <strong>Dare:</strong> €${f.dare}<br/>
+          <strong>Avere:</strong> €${f.avere}<br/>
+          <strong>Scadenza:</strong> ${f.scadenza}<br/>
+          <strong>Lavoro:</strong> ${f.prestazione}<br/>
+          <strong>Cliente:</strong> ${f.cliente}<br/>
+          <strong>Note:</strong> ${f.note}<br/>
+          <strong>Stato:</strong> ${f.stato}<br/>
+          <button class="edit" onclick="modificaFattura('${id}')">✏️</button>
+          <button class="delete" onclick="eliminaFattura('${id}')">🗑️</button>
+        </div>`;
+    }
+
+    async function caricaFatture() {
+      const snapshot = await db.collection("ditte").doc(ditta).collection("fatture").get();
+      document.getElementById("colIMC").innerHTML = "<h3>IMC</h3>";
+      document.getElementById("colSELLING").innerHTML = "<h3>SELLING</h3>";
+      snapshot.forEach(doc => {
+        const f = doc.data();
+        const html = creaFatturaHTML(f, doc.id);
+        document.getElementById(f.societa === "SELLING" ? "colSELLING" : "colIMC").innerHTML += html;
+      });
+    }
+
+    async function aggiungiFattura() {
+      const nuova = {
+        numero: document.getElementById("numero").value,
+        data: document.getElementById("data").value.split("-").reverse().join("/"),
+        dare: parseFloat(document.getElementById("dare").value),
+        avere: parseFloat(document.getElementById("avere").value),
+        scadenza: document.getElementById("scadenza").value,
+        prestazione: document.getElementById("prestazione").value,
+        cliente: document.getElementById("cliente").value,
+        note: document.getElementById("note").value,
+        societa: document.getElementById("societa").value,
+        stato: document.getElementById("stato").value
+      };
+      await db.collection("ditte").doc(ditta).collection("fatture").add(nuova);
+      caricaFatture();
+    }
+
+    async function eliminaFattura(id) {
+      if (!confirm("Confermi l'eliminazione di questa fattura?")) return;
+      await db.collection("ditte").doc(ditta).collection("fatture").doc(id).delete();
+      caricaFatture();
+    }
+
+    async function modificaFattura(id) {
+      const doc = await db.collection("ditte").doc(ditta).collection("fatture").doc(id).get();
+      const f = doc.data();
+      document.getElementById("numero").value = f.numero;
+      document.getElementById("data").value = f.data.split("/").reverse().join("-");
+      document.getElementById("dare").value = f.dare;
+      document.getElementById("avere").value = f.avere;
+      document.getElementById("scadenza").value = f.scadenza;
+      document.getElementById("prestazione").value = f.prestazione;
+      document.getElementById("cliente").value = f.cliente;
+      document.getElementById("note").value = f.note;
+      document.getElementById("societa").value = f.societa;
+      document.getElementById("stato").value = f.stato;
+
+      document.querySelector("button[onclick='aggiungiFattura()']").textContent = "💾 Salva Modifiche";
+      document.querySelector("button[onclick='aggiungiFattura()']").onclick = async function () {
+        const aggiornata = {
+          numero: document.getElementById("numero").value,
+          data: document.getElementById("data").value.split("-").reverse().join("/"),
+          dare: parseFloat(document.getElementById("dare").value),
+          avere: parseFloat(document.getElementById("avere").value),
+          scadenza: document.getElementById("scadenza").value,
+          prestazione: document.getElementById("prestazione").value,
+          cliente: document.getElementById("cliente").value,
+          note: document.getElementById("note").value,
+          societa: document.getElementById("societa").value,
+          stato: document.getElementById("stato").value
+        };
+        await db.collection("ditte").doc(ditta).collection("fatture").doc(id).set(aggiornata);
+        location.reload();
+      };
+    }
+
+    caricaFatture();
+  </script>
+</body>
+</html>

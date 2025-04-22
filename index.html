@@ -2,23 +2,19 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IMC-Selling Hub - Home</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IMC-Selling Hub - Homepage Completa</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; margin: 0; background: #f4f4f4; }
     header { background: #222; color: #fff; padding: 20px; text-align: center; }
     .container { max-width: 1200px; margin: 20px auto; padding: 20px; background: #fff; }
-    .card-grid { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px; }
-    .card { background: #e9ecef; padding: 15px; border-radius: 8px; cursor: pointer; width: calc(50% - 20px); }
-    .card:hover { background: #d6dee4; }
     .calendar-grid {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
       gap: 5px;
       background: #eee;
       padding: 10px;
-      margin-top: 10px;
     }
     .calendar-day {
       background: white;
@@ -46,8 +42,35 @@
       padding: 10px;
       border-radius: 5px;
     }
+    .card-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .card {
+      background: #e9ecef;
+      padding: 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      width: calc(50% - 20px);
+      position: relative;
+    }
+    .card:hover { background: #d6dee4; }
+    .delete-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: red;
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    #newDittaInput { width: 60%; padding: 8px; }
+    #addDittaBtn { padding: 8px 12px; margin-left: 10px; }
   </style>
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
   <script>
@@ -61,90 +84,59 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-  </script>
-</head>
-<body>
-  <header>
-    <h1>IMC-Selling Hub</h1>
-  </header>
 
-  <div class="container" id="calendarSection">
-    <h2>📅 Calendario Scadenze</h2>
-    <div class="calendar-grid" id="calendarGrid"></div>
-    <div id="fattureDelGiorno"></div>
-  </div>
+    let meseCorrente = new Date().getMonth();
+    let annoCorrente = new Date().getFullYear();
 
-  <div class="container" id="homePage">
-    <h2>📋 Elenco Ditte</h2>
-    <div class="card-grid" id="dittaCards">
-      <!-- Popolato da JS -->
-    </div>
-  </div>
-
-  <script>
     async function caricaFattureEDitte() {
       const calendario = [];
-      const dittaMap = {};
-
-      const ditteSnapshot = await db.collection("ditte").get();
-      for (const dittaDoc of ditteSnapshot.docs) {
+      const snapshot = await db.collection("ditte").get();
+      for (const dittaDoc of snapshot.docs) {
         const dittaName = dittaDoc.id;
         const fattureSnap = await db.collection("ditte").doc(dittaName).collection("fatture").get();
-        let totaleDare = 0;
-        let prossimaScadenza = "";
-
         fattureSnap.forEach(doc => {
           const f = doc.data();
           calendario.push(f);
-          totaleDare += parseFloat(f.dare || 0);
-          if (!prossimaScadenza || f.data < prossimaScadenza) {
-            prossimaScadenza = f.data;
-          }
         });
-
-        dittaMap[dittaName] = { totaleDare, prossimaScadenza };
       }
 
-      generaCalendario(calendario);
-      popolaCards(dittaMap);
+      // Aggiunta dei dati da localStorage
+      const locale = JSON.parse(localStorage.getItem("fatture_backup") || "[]");
+      calendario.push(...locale);
+
+      generaCalendario(calendario, meseCorrente, annoCorrente);
     }
 
-    function popolaCards(dittaMap) {
-      const container = document.getElementById("dittaCards");
-      container.innerHTML = "";
-      Object.entries(dittaMap).forEach(([nome, dati]) => {
-        const div = document.createElement("div");
-        div.className = "card";
-        div.onclick = () => alert('Visualizzazione dettagli per ' + nome);
-        div.innerHTML = `
-          <h3>${nome}</h3>
-          <p>Totale Dare: €${dati.totaleDare}</p>
-          <p>Prossima Scadenza: ${dati.prossimaScadenza}</p>
-        `;
-        container.appendChild(div);
-      });
+    function cambiaMese(delta) {
+      meseCorrente += delta;
+      if (meseCorrente > 11) { meseCorrente = 0; annoCorrente++; }
+      else if (meseCorrente < 0) { meseCorrente = 11; annoCorrente--; }
+      caricaFattureEDitte();
     }
 
-    function generaCalendario(fatture) {
+    function generaCalendario(fatture, mese, anno) {
       const calendarGrid = document.getElementById("calendarGrid");
       const fatturePerGiorno = {};
-
       fatture.forEach(f => {
-        if (!fatturePerGiorno[f.data]) {
-          fatturePerGiorno[f.data] = [];
-        }
+        if (!fatturePerGiorno[f.data]) fatturePerGiorno[f.data] = [];
         fatturePerGiorno[f.data].push(f);
       });
 
-      const oggi = new Date();
-      const anno = oggi.getFullYear();
-      const mese = oggi.getMonth();
       const primoGiorno = new Date(anno, mese, 1).getDay();
       const giorniNelMese = new Date(anno, mese + 1, 0).getDate();
-
       calendarGrid.innerHTML = "";
+      const meseNome = new Date(anno, mese).toLocaleDateString("it-IT", { month: "long", year: "numeric" }).toUpperCase();
+      document.getElementById("meseCorrente").textContent = meseNome;
 
-      for (let i = 0; i < primoGiorno; i++) {
+      const giorniSettimana = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+      giorniSettimana.forEach(g => {
+        const day = document.createElement("div");
+        day.textContent = g;
+        day.style.fontWeight = "bold";
+        calendarGrid.appendChild(day);
+      });
+
+      for (let i = 1; i < (primoGiorno === 0 ? 7 : primoGiorno); i++) {
         const cella = document.createElement("div");
         cella.className = "calendar-day";
         calendarGrid.appendChild(cella);
@@ -160,11 +152,11 @@
           cella.classList.add("has-fatture");
           const count = document.createElement("div");
           count.className = "count";
-          count.textContent = fatturePerGiorno[dataKey].length;
+          const totale = fatturePerGiorno[dataKey].reduce((sum, f) => sum + parseFloat(f.dare || 0), 0);
+          count.textContent = `${fatturePerGiorno[dataKey].length} / €${totale}`;
           cella.appendChild(count);
           cella.onclick = () => mostraFattureDelGiorno(dataKey, fatturePerGiorno[dataKey]);
         }
-
         calendarGrid.appendChild(cella);
       }
     }
@@ -176,7 +168,63 @@
       ).join("");
     }
 
-    caricaFattureEDitte();
+    async function caricaDitte() {
+      const container = document.getElementById("dittaCards");
+      container.innerHTML = "";
+      const snapshot = await db.collection("ditte").get();
+      snapshot.forEach(doc => {
+        const nome = doc.id;
+        const div = document.createElement("div");
+        div.className = "card";
+        div.onclick = () => window.location.href = 'index_dettaglio_fatture.html?ditta=' + encodeURIComponent(nome);
+        div.innerHTML = `<h3>${nome}</h3><button class="delete-btn" onclick="eliminaDitta(event, '${nome}')">🗑️</button>`;
+        container.appendChild(div);
+      });
+    }
+
+    async function aggiungiDitta() {
+      const nome = document.getElementById("newDittaInput").value.trim();
+      if (!nome) return alert("Inserisci un nome valido.");
+      const ref = db.collection("ditte").doc(nome);
+      const exists = await ref.get();
+      if (exists.exists) return alert("Questa ditta esiste già.");
+      await ref.set({ creata: new Date().toISOString() });
+      document.getElementById("newDittaInput").value = "";
+      caricaDitte();
+    }
+
+    async function eliminaDitta(event, nome) {
+      event.stopPropagation();
+      if (!confirm("Vuoi davvero eliminare la ditta '" + nome + "'? Tutte le fatture saranno perse.")) return;
+      const fattureSnap = await db.collection("ditte").doc(nome).collection("fatture").get();
+      const batch = db.batch();
+      fattureSnap.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+      await db.collection("ditte").doc(nome).delete();
+      caricaDitte();
+    }
+
+    window.onload = () => {
+      caricaFattureEDitte();
+      caricaDitte();
+    };
   </script>
+</head>
+<body>
+  <header><h1>IMC-Selling Hub</h1></header>
+
+  <div class="container">
+    <h2>📅 Calendario Scadenze</h2>
+    <div><button onclick="cambiaMese(-1)">◀️</button> <span id="meseCorrente">Mese</span> <button onclick="cambiaMese(1)">▶️</button></div>
+    <div class="calendar-grid" id="calendarGrid"></div>
+    <div id="fattureDelGiorno"></div>
+  </div>
+
+  <div class="container">
+    <h2>📋 Gestione Ditte</h2>
+    <input type="text" id="newDittaInput" placeholder="Nome nuova ditta..."/>
+    <button id="addDittaBtn" onclick="aggiungiDitta()">➕ Aggiungi Ditta</button>
+    <div class="card-grid" id="dittaCards"></div>
+  </div>
 </body>
 </html>
