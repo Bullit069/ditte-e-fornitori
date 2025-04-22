@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>IMC-Selling Hub - Unificato</title>
+  <title>IMC-Selling Hub - Completo</title>
   <style>
     body { font-family: Arial; margin: 0; background: #f4f4f4; }
     header { background: #222; color: white; padding: 20px; text-align: center; }
@@ -46,7 +47,6 @@
   <div class="container" id="dittaDetails" style="display:none;">
     <button onclick="goBack()">← Torna alla Home</button>
     <h2 id="titoloDitta">Ditta: ...</h2>
-
     <div class="form-field"><input id="numero" type="text" placeholder="Numero Fattura"></div>
     <div class="form-field"><input id="data" type="date"></div>
     <div class="form-field"><input id="dare" type="number" placeholder="Importo Dare (€)"></div>
@@ -55,14 +55,9 @@
     <div class="form-field"><input id="prestazione" type="text" placeholder="Tipo di lavoro"></div>
     <div class="form-field"><input id="cliente" type="text" placeholder="Cliente"></div>
     <div class="form-field"><input id="note" type="text" placeholder="Note"></div>
-    <div class="form-field">
-      <select id="societa"><option value="IMC">IMC</option><option value="SELLING">SELLING</option></select>
-    </div>
-    <div class="form-field">
-      <select id="stato"><option value="Pagata">Pagata</option><option value="Da pagare">Da pagare</option><option value="In attesa">In attesa</option></select>
-    </div>
-    <button onclick="aggiungiFattura()">➕ Aggiungi Fattura</button>
-
+    <div class="form-field"><select id="societa"><option value="IMC">IMC</option><option value="SELLING">SELLING</option></select></div>
+    <div class="form-field"><select id="stato"><option value="Pagata">Pagata</option><option value="Da pagare">Da pagare</option><option value="In attesa">In attesa</option></select></div>
+    <button id="aggiungiFatturaBtn">➕ Aggiungi Fattura</button>
     <div class="columns">
       <div class="column" id="colIMC"><h3>IMC</h3></div>
       <div class="column" id="colSELLING"><h3>SELLING</h3></div>
@@ -80,10 +75,14 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-
 let meseCorrente = new Date().getMonth();
 let annoCorrente = new Date().getFullYear();
 let dittaCorrente = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("aggiungiFatturaBtn").addEventListener("click", aggiungiFattura);
+  caricaFattureEDitte();
+});
 
 function cambiaMese(delta) {
   meseCorrente += delta;
@@ -94,7 +93,6 @@ function cambiaMese(delta) {
 
 function goBack() {
   document.getElementById("homePage").style.display = "block";
-  document.getElementById("calendarGrid").scrollIntoView();
   document.getElementById("dittaDetails").style.display = "none";
 }
 
@@ -109,7 +107,6 @@ async function caricaFattureEDitte() {
     div.innerHTML = `<h3>${nome}</h3><button class="delete-btn" onclick="eliminaDitta(event, '${nome}')">🗑️</button>`;
     div.onclick = () => mostraDettaglioDitta(nome);
     document.getElementById("dittaCards").appendChild(div);
-
     const fattSnap = await db.collection("ditte").doc(nome).collection("fatture").get();
     fattSnap.forEach(f => calendario.push(f.data()));
     generaCalendario(calendario, meseCorrente, annoCorrente);
@@ -117,44 +114,35 @@ async function caricaFattureEDitte() {
 }
 
 function generaCalendario(fatture, mese, anno) {
-  const calendarGrid = document.getElementById("calendarGrid");
-  const fatturePerGiorno = {};
-  fatture.forEach(f => {
-    if (!fatturePerGiorno[f.data]) fatturePerGiorno[f.data] = [];
-    fatturePerGiorno[f.data].push(f);
-  });
-  calendarGrid.innerHTML = "";
+  const grid = document.getElementById("calendarGrid");
+  grid.innerHTML = "";
+  const intestazione = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
   document.getElementById("meseCorrente").textContent = new Date(anno, mese).toLocaleDateString("it-IT", { month: "long", year: "numeric" }).toUpperCase();
-
-  ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].forEach(g => {
-    const cell = document.createElement("div");
-    cell.textContent = g;
-    cell.style.fontWeight = "bold";
-    calendarGrid.appendChild(cell);
+  intestazione.forEach(g => {
+    const div = document.createElement("div");
+    div.innerHTML = "<strong>" + g + "</strong>";
+    grid.appendChild(div);
   });
-
-  const primo = new Date(anno, mese, 1).getDay();
-  for (let i = 1; i < (primo === 0 ? 7 : primo); i++) {
-    const empty = document.createElement("div");
-    empty.className = "calendar-day";
-    calendarGrid.appendChild(empty);
+  const giornoStart = new Date(anno, mese, 1).getDay();
+  for (let i = 1; i < (giornoStart === 0 ? 7 : giornoStart); i++) {
+    grid.appendChild(document.createElement("div"));
   }
-
   const giorni = new Date(anno, mese + 1, 0).getDate();
   for (let g = 1; g <= giorni; g++) {
-    const cell = document.createElement("div");
-    cell.className = "calendar-day";
-    const dataKey = `${g.toString().padStart(2, '0')}/${(mese + 1).toString().padStart(2, '0')}/${anno}`;
-    cell.textContent = g;
-    if (fatturePerGiorno[dataKey]) {
-      cell.classList.add("has-fatture");
-      const count = document.createElement("div");
-      count.className = "count";
-      const totale = fatturePerGiorno[dataKey].reduce((sum, f) => sum + parseFloat(f.dare || 0), 0);
-      count.textContent = `${fatturePerGiorno[dataKey].length} / €${totale}`;
-      cell.appendChild(count);
+    const dataKey = `${String(g).padStart(2, "0")}/${String(mese + 1).padStart(2, "0")}/${anno}`;
+    const box = document.createElement("div");
+    box.className = "calendar-day";
+    box.textContent = g;
+    const eventi = fatture.filter(f => f.data === dataKey);
+    if (eventi.length > 0) {
+      box.classList.add("has-fatture");
+      const totale = eventi.reduce((s, f) => s + parseFloat(f.dare || 0), 0);
+      const c = document.createElement("div");
+      c.className = "count";
+      c.textContent = `${eventi.length} / €${totale}`;
+      box.appendChild(c);
     }
-    calendarGrid.appendChild(cell);
+    grid.appendChild(box);
   }
 }
 
@@ -163,19 +151,16 @@ async function mostraDettaglioDitta(nome) {
   document.getElementById("homePage").style.display = "none";
   document.getElementById("dittaDetails").style.display = "block";
   document.getElementById("titoloDitta").textContent = "Ditta: " + nome;
-  const snapshot = await db.collection("ditte").doc(nome).collection("fatture").get();
+  const snap = await db.collection("ditte").doc(nome).collection("fatture").get();
   document.getElementById("colIMC").innerHTML = "<h3>IMC</h3>";
   document.getElementById("colSELLING").innerHTML = "<h3>SELLING</h3>";
-  snapshot.forEach(doc => {
+  snap.forEach(doc => {
     const f = doc.data();
-    const html = `
-      <div class="fattura">
-        <strong>N°:</strong> ${f.numero}<br/>
-        <strong>Data:</strong> ${f.data}<br/>
-        <strong>Dare:</strong> €${f.dare}<br/>
-        <strong>Cliente:</strong> ${f.cliente}<br/>
-        <strong>Stato:</strong> ${f.stato}
-      </div>`;
+    const html = `<div class="fattura"><strong>N°:</strong> ${f.numero}<br/>
+      <strong>Data:</strong> ${f.data}<br/>
+      <strong>Dare:</strong> €${f.dare}<br/>
+      <strong>Cliente:</strong> ${f.cliente}<br/>
+      <strong>Stato:</strong> ${f.stato}</div>`;
     document.getElementById(f.societa === "SELLING" ? "colSELLING" : "colIMC").innerHTML += html;
   });
 }
@@ -189,7 +174,7 @@ async function aggiungiDitta() {
 
 async function eliminaDitta(event, nome) {
   event.stopPropagation();
-  if (!confirm("Confermi eliminazione di " + nome + "?")) return;
+  if (!confirm("Eliminare " + nome + "?")) return;
   const snap = await db.collection("ditte").doc(nome).collection("fatture").get();
   const batch = db.batch();
   snap.forEach(doc => batch.delete(doc.ref));
@@ -198,7 +183,23 @@ async function eliminaDitta(event, nome) {
   caricaFattureEDitte();
 }
 
-window.onload = () => { caricaFattureEDitte(); }
+async function aggiungiFattura() {
+  const nuova = {
+    numero: document.getElementById("numero").value,
+    data: document.getElementById("data").value.split("-").reverse().join("/"),
+    dare: parseFloat(document.getElementById("dare").value),
+    avere: parseFloat(document.getElementById("avere").value),
+    scadenza: document.getElementById("scadenza").value,
+    prestazione: document.getElementById("prestazione").value,
+    cliente: document.getElementById("cliente").value,
+    note: document.getElementById("note").value,
+    societa: document.getElementById("societa").value,
+    stato: document.getElementById("stato").value
+  };
+  await db.collection("ditte").doc(dittaCorrente).collection("fatture").add(nuova);
+  mostraDettaglioDitta(dittaCorrente);
+  caricaFattureEDitte();
+}
 </script>
 </body>
 </html>
