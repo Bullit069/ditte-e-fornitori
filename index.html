@@ -46,12 +46,12 @@
 
   <div class="container" id="homePage">
     <h2>📋 Gestione Ditte</h2>
-    <input type="text" id="newDittaInput" placeholder="Nome nuova ditta..."/>
-    
-    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-      <button onclick="goBack()">🔙 Torna alla Home</button>
-      <button id="aggiungiFatturaBtn">💾 Salva Fattura</button>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+      <input type="text" id="newDittaInput" placeholder="Nome nuova ditta..." style="flex: 1;" />
+      <button onclick="aggiungiDitta()">➕ Aggiungi Ditta</button>
     </div>
+    <div class="card-grid" id="dittaCards"></div>
+  </div>  
     
     <div class="card-grid" id="dittaCards"></div>
   </div>
@@ -220,19 +220,43 @@ async function eliminaDitta(event, nome) {
 
 async function aggiungiFattura() {
   const nuova = {
-  numero: document.getElementById("numero").value,
-  data: document.getElementById("data").value.split("-").reverse().join("/"),
-  dare: parseFloat(document.getElementById("dare").value),
-  avere: parseFloat(document.getElementById("avere").value),
-  scadenza: document.getElementById("scadenza").value,
-  prestazione: document.getElementById("prestazione").value,
-  cliente: document.getElementById("cliente").value,
-  note: document.getElementById("note").value,
-  societa: document.getElementById("societa").value,
-  stato: document.getElementById("stato").value,
-  ditta: dittaCorrente // ➕ questa riga aggiunge il nome della ditta
-};
-  await db.collection("ditte").doc(dittaCorrente).collection("fatture").add(nuova);
+    numero: document.getElementById("numero").value,
+    data: document.getElementById("data").value.split("-").reverse().join("/"),
+    dare: parseFloat(document.getElementById("dare").value),
+    avere: parseFloat(document.getElementById("avere").value),
+    scadenza: document.getElementById("scadenza").value,
+    prestazione: document.getElementById("prestazione").value,
+    cliente: document.getElementById("cliente").value,
+    note: document.getElementById("note").value,
+    societa: document.getElementById("societa").value,
+    stato: document.getElementById("stato").value,
+    ditta: dittaCorrente
+  };
+
+  if (!dittaCorrente) {
+    alert("Errore: nessuna ditta selezionata.");
+    return;
+  }
+
+  // se siamo in modifica, aggiorniamo
+  if (idFatturaInModifica) {
+    await db.collection("ditte").doc(dittaCorrente).collection("fatture").doc(idFatturaInModifica).set(nuova);
+    idFatturaInModifica = null;
+    const btn = document.getElementById("salvaModificaBtn");
+    if (btn) btn.remove();
+  } else {
+    // altrimenti, creiamo nuova fattura
+    await db.collection("ditte").doc(dittaCorrente).collection("fatture").add(nuova);
+  }
+
+  // reset form
+  document.getElementById("aggiungiFatturaBtn").style.display = "inline-block";
+  ["numero", "data", "dare", "avere", "scadenza", "prestazione", "cliente", "note"].forEach(id => {
+    document.getElementById(id).value = "";
+  });
+  document.getElementById("societa").value = "IMC";
+  document.getElementById("stato").value = "Pagata";
+
   mostraDettaglioDitta(dittaCorrente);
   caricaFattureEDitte();
 }
@@ -254,13 +278,7 @@ async function modificaFattura(id) {
   document.getElementById("societa").value = f.societa;
   document.getElementById("stato").value = f.stato;
   document.getElementById("aggiungiFatturaBtn").style.display = "none";
-  if (!document.getElementById("salvaModificaBtn")) {
-    const btn = document.createElement("button");
-    btn.id = "salvaModificaBtn";
-    btn.textContent = "💾 Salva Modifica";
-    btn.onclick = salvaModificaFattura;
-    document.getElementById("dittaDetails").appendChild(btn);
-  }
+
 }
 
 async function salvaModificaFattura() {
